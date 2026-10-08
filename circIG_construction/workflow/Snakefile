@@ -1,0 +1,66 @@
+from pathlib import Path
+import csv
+
+
+WORKFLOW_DIR = Path(workflow.basedir).resolve()
+configfile: str(WORKFLOW_DIR / "config/config.yaml")
+
+REPO = WORKFLOW_DIR.parent
+RESULTS = (REPO / config["results_root"]).resolve()
+PYTHON = config["python"]
+LIFTOVER = config["liftover_bin"]
+RUNNER_JOBS = int(config.get("runner_jobs", 1))
+
+
+def repo_path(value):
+    path = Path(value)
+    return str(path if path.is_absolute() else REPO / path)
+
+
+def result_path(value):
+    return str(RESULTS / value)
+
+
+def read_tsv(path):
+    with Path(path).open(newline="") as handle:
+        return list(csv.DictReader(handle, delimiter="\t"))
+
+
+def source_outputs(manifest):
+    manifest = Path(manifest).resolve()
+    outputs = []
+    for row in read_tsv(manifest):
+        source = (manifest.parent / row["path"]).resolve()
+        outputs.append(str(RESULTS / source.relative_to(REPO)))
+    return outputs
+
+
+HUMAN_T1 = {row["database"]: row for row in read_tsv(REPO / "workflow/config/human_tier1.tsv")}
+MOUSE_T1 = {row["database"]: row for row in read_tsv(REPO / "workflow/config/mouse_tier1.tsv")}
+HUMAN_T2_MANIFEST = REPO / "00_master/pipeline_configs/human_tier2_coordinate_systems.tsv"
+HUMAN_T3_MANIFEST = REPO / "00_master/pipeline_configs/human_tier3_coordinate_systems.tsv"
+HUMAN_T4_MANIFEST = REPO / "00_master/pipeline_configs/human_tier4_coordinate_systems.tsv"
+MOUSE_T2_MANIFEST = REPO / "00_master/pipeline_configs/mouse_tier2_coordinate_systems.tsv"
+MOUSE_T3_MANIFEST = REPO / "workflow/config/mouse_tier3_coordinate_systems.tsv"
+MOUSE_T4_MANIFEST = REPO / "workflow/config/mouse_tier4_coordinate_systems.tsv"
+
+HUMAN_SOURCE_MANIFESTS = {
+    tier: REPO / f"00_master/base_construction/database_sources.v{tier}.tsv"
+    for tier in range(1, 5)
+}
+MOUSE_SOURCE_MANIFESTS = {
+    tier: REPO / f"00_master/base_construction/mouse/database_sources.v{tier}.tsv"
+    for tier in range(1, 5)
+}
+
+
+rule all:
+    input:
+        result_path("00_master/base_construction/mouse_conservation/circRNA_presence_master.v4.mouse_conservation.tsv")
+
+
+include: str(WORKFLOW_DIR / "rules/common.smk")
+include: str(WORKFLOW_DIR / "rules/human.smk")
+include: str(WORKFLOW_DIR / "rules/mouse.smk")
+include: str(WORKFLOW_DIR / "rules/conservation.smk")
+include: str(WORKFLOW_DIR / "rules/validation.smk")

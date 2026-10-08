@@ -1,0 +1,22 @@
+method	mode	feature_id	feature_name	effect_type	coefficient
+Elastic Net	CS-R	NA	(Intercept)	intercept	-1.83197668142399
+Elastic Net	CS-R	f16	7 DB	coefficient	0.361440820812749
+Elastic Net	CS-R	f17	FL-circAS or circFL_seq	coefficient	0.988017980471725
+Elastic Net	CS-R	f18	mouse_conserved	coefficient	0.219259282591337
+Elastic Net	CS-C	NA	(Intercept)	intercept	-5.10727496360699
+Elastic Net	CS-C	f1	donor_site_at_the_annotated_boundary	coefficient	-0.148305806637605
+Elastic Net	CS-C	f2	acceptor_site_at_the_annotated_boundary	coefficient	1.09461438308251
+Elastic Net	CS-C	f3	donor_acceptor_sites_at_the_same_transcript_isoform	coefficient	2.01292033106114
+Elastic Net	CS-C	f4	has_AS_event(donor)	coefficient	0.214826823864763
+Elastic Net	CS-C	f5	has_AS_event(acceptor)	coefficient	0.0483304175961205
+Elastic Net	CS-C	f6	phyloP(acceptor_in)	coefficient	-0.136554495314797
+Elastic Net	CS-C	f7	phyloP(acceptor_out)	coefficient	-0.00639849459009621
+Elastic Net	CS-C	f8	phyloP(donor_in)	coefficient	-0.152433331039311
+Elastic Net	CS-C	f9	phyloP(donor_out)	coefficient	0.320059517755662
+Elastic Net	CS-C	f10	phastCons(acceptor_in)	coefficient	1.60769812565828
+Elastic Net	CS-C	f11	phastCons(acceptor_out)	coefficient	-0.0166760802162499
+Elastic Net	CS-C	f12	phastCons(donor_in)	coefficient	1.67565647171006
+Elastic Net	CS-C	f13	phastCons(donor_out)	coefficient	-0.930662187756495
+Elastic Net	CS-C	f14	MAXENT(donor)	coefficient	0.128749717787513
+Elastic Net	CS-C	f15	MAXENT(acceptor)	coefficient	0.085047405211813
+

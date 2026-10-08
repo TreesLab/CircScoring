@@ -1,0 +1,7 @@
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pblat=2.5.1
+  - bedtools=2.31.1

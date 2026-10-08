@@ -1,0 +1,3 @@
+database	clean_input	coordinate_strategy	included_coordinate_classes	coordinate_check	coordinate_summary	runner	legacy_policy	final_output	notes
+06_CircFunBase	06_CircFunBase/mouse/clean/06_CircFunBase.circRNAs.clean.tsv	precomputed_row_level	mm10_1based,mm10_0based	workflow/config/locked_coordinate_assignments/06_CircFunBase.mouse.tsv	NA	06_CircFunBase/mouse/run_pipeline.py	prefer_mm10_for_ambiguous	06_CircFunBase/mouse/processed/06_CircFunBase.circRNAs.final.tsv	Locked row-level coordinate assignment
+09_circSC	09_circSC/mouse/clean/09_circSC.circRNAs.clean.tsv	recompute_row_level	NA	NA	NA	09_circSC/mouse/run_pipeline.py	NA	09_circSC/mouse/processed/09_circSC.circRNAs.final.tsv	Recomputed against mouse tier 3 without strand constraints

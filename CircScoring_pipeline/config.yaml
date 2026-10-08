@@ -1,0 +1,47 @@
+# Required analysis input. The table must contain chrom, start, end, strand.
+# A recognized header is optional; strand must be + or -.
+input_circrnas: null
+run_name: null
+
+# Human reference genome and gene annotation
+genome: "resources/gene_annotation/GRCh38.primary_assembly.genome.fa"
+annotation: "resources/gene_annotation/gencode.v49.annotation.gtf"
+
+# UCSC-style hg38 conservation tracks
+phyloP: "resources/conservation_scores/hg38.phyloP100way.bw"
+phastCons: "resources/conservation_scores/hg38.phastCons100way.bw"
+
+# Database-presence tables produced by the database-integration workflow
+database_presence:
+  human: "resources/circRNAs/human/circRNA_presence_master.v4.tsv"
+  mouse: "resources/circRNAs/mouse/circRNA_presence_master.v4.tsv"
+
+# Mouse mm10 to human hg38 conversion
+mouse_liftover:
+  chain: "resources/liftover/mm10ToHg38.over.chain.gz"
+  threads: 8
+
+# circFL-seq hg19 table and conversion chain
+circfl:
+  table: "resources/circFL_seq/circRNA_circFL_table.tsv"
+  chain: "resources/circFL_seq/hg19ToHg38.over.chain.gz"
+
+# 用於計算 predictCS percentile rank 的固定 score 分布
+score_rank_reference: "resources/CS_CR_score_ranks/scores_and_ranks.tsv"
+
+# Feature calculation
+annotation_boundary_threads: 8
+annotation_worker_lru_size: 100000
+annotation_boundary_targeted_threshold: 100000
+conservation_threads: 8
+conservation_worker_lru_size: 100000
+
+predictCS:
+  chunk_size: 50000
+
+# Optional alignment-ambiguity analysis (`snakemake checkAA`)
+checkAA:
+  other_references: "resources/gene_annotation/other_ref.fa"
+  threads: 8
+  flank_length: 50
+  chunk_size: 100000

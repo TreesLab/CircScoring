@@ -1,0 +1,12 @@
+{
+  "results_root": "results",
+  "python": "python3",
+  "liftover_bin": "liftOver",
+  "runner_jobs": 2,
+  "chains": {
+    "hg19_to_hg38": "00_master/pipeline_resources/hg19ToHg38.over.chain.gz",
+    "mm9_to_mm10": "00_master/pipeline_resources/mm9ToMm10.over.chain.gz",
+    "mm10_to_hg38": "00_master/pipeline_resources/mm10ToHg38.over.chain.gz"
+  },
+  "mouse_partial_mapping_overrides": "00_master/pipeline_configs/mouse_v1_conservation_partial_mappings.tsv"
+}

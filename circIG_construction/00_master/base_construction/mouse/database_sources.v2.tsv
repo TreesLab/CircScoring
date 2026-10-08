@@ -1,0 +1,11 @@
+source	path
+01_circBase	../../../01_circBase/mouse/processed/01_circBase.circRNAs.final.tsv
+02_circAtlas	../../../02_circAtlas/mouse/processed/02_circAtlas.circRNAs.final.tsv
+03_CIRCpedia	../../../03_CIRCpedia/mouse/processed/03_CIRCpedia.circRNAs.final.tsv
+04_CircBank	../../../04_CircBank/mouse/processed/04_CircBank.circRNAs.final.tsv
+07_FL-circAS	../../../07_FL-circAS/mouse/processed/07_FL-circAS.circRNAs.final.tsv
+18_riboCIRC	../../../18_riboCIRC/mouse/processed/18_riboCIRC.circRNAs.final.tsv
+21_CircTarget	../../../21_CircTarget/mouse/processed/21_CircTarget.circRNAs.final.tsv
+36_CircAge	../../../36_CircAge/mouse/processed/36_CircAge.circRNAs.final.tsv
+39_CircASbase	../../../39_CircASbase/mouse/processed/39_CircASbase.circRNAs.final.tsv
+40_CircAI	../../../40_CircAI/mouse/processed/40_CircAI.circRNAs.final.tsv

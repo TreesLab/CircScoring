@@ -1,0 +1,6 @@
+method	mode	max_depth	learning_rate	min_child_weight	subsample	colsample_bytree	gamma	nrounds	alpha	lambda
+XGBoost	CS-R	4	0.03	1	0.7	0.8	0	100	NA	NA
+XGBoost	CS-C	2	0.05	5	0.7	1	0.5	100	NA	NA
+Elastic Net	CS-R	NA	NA	NA	NA	NA	NA	NA	0.3	0.184206996932672
+Elastic Net	CS-C	NA	NA	NA	NA	NA	NA	NA	0.1	0.0001
+
