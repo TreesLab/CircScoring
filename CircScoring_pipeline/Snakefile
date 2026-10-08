@@ -1,0 +1,665 @@
+import os
+import re
+from pathlib import Path
+
+
+RELEASE_ROOT = Path(workflow.basedir).resolve()
+
+workdir: str(RELEASE_ROOT)
+configfile: str(RELEASE_ROOT / "config.yaml")
+
+
+def required_config(path, value):
+    if value is None or value == "":
+        raise ValueError(f"Missing required config value: {path}")
+    return str(value)
+
+
+INPUT_CIRCRNAS = required_config("input_circrnas", config.get("input_circrnas"))
+RUN_NAME = required_config("run_name", config.get("run_name"))
+if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", RUN_NAME) is None:
+    raise ValueError(
+        "run_name must start with an alphanumeric character and contain only "
+        "alphanumeric characters, dots, underscores, or hyphens"
+    )
+
+GENOME = required_config("genome", config.get("genome"))
+ANNOTATION = required_config("annotation", config.get("annotation"))
+PHYLOP = required_config("phyloP", config.get("phyloP"))
+PHASTCONS = required_config("phastCons", config.get("phastCons"))
+HUMAN_PRESENCE = required_config(
+    "database_presence.human", config.get("database_presence", {}).get("human")
+)
+MOUSE_PRESENCE = required_config(
+    "database_presence.mouse", config.get("database_presence", {}).get("mouse")
+)
+MOUSE_CHAIN = required_config(
+    "mouse_liftover.chain", config.get("mouse_liftover", {}).get("chain")
+)
+CIRCFL_TABLE = required_config(
+    "circfl.table", config.get("circfl", {}).get("table")
+)
+CIRCFL_CHAIN = required_config(
+    "circfl.chain", config.get("circfl", {}).get("chain")
+)
+SCORE_RANK_REFERENCE = required_config(
+    "score_rank_reference", config.get("score_rank_reference")
+)
+
+ANNOTATION_THREADS = int(config.get("annotation_boundary_threads", 8))
+ANNOTATION_LRU_SIZE = int(config.get("annotation_worker_lru_size", 100000))
+ANNOTATION_TARGETED_THRESHOLD = int(
+    config.get("annotation_boundary_targeted_threshold", 100000)
+)
+CONSERVATION_THREADS = int(config.get("conservation_threads", 8))
+CONSERVATION_LRU_SIZE = int(config.get("conservation_worker_lru_size", 100000))
+MOUSE_LIFTOVER_THREADS = int(config.get("mouse_liftover", {}).get("threads", 8))
+PREDICTCS_CHUNK_SIZE = int(config.get("predictCS", {}).get("chunk_size", 50000))
+
+CHECKAA_CONFIG = config.get("checkAA", {})
+CHECKAA_OTHER_REFERENCES = CHECKAA_CONFIG.get("other_references")
+CHECKAA_THREADS = int(CHECKAA_CONFIG.get("threads", 8))
+CHECKAA_FLANK_LENGTH = int(CHECKAA_CONFIG.get("flank_length", 50))
+CHECKAA_CHUNK_SIZE = int(CHECKAA_CONFIG.get("chunk_size", 100000))
+
+for name, value in (
+    ("annotation_boundary_threads", ANNOTATION_THREADS),
+    ("conservation_threads", CONSERVATION_THREADS),
+    ("mouse_liftover.threads", MOUSE_LIFTOVER_THREADS),
+    ("predictCS.chunk_size", PREDICTCS_CHUNK_SIZE),
+    ("checkAA.threads", CHECKAA_THREADS),
+    ("checkAA.flank_length", CHECKAA_FLANK_LENGTH),
+    ("checkAA.chunk_size", CHECKAA_CHUNK_SIZE),
+):
+    if value <= 0:
+        raise ValueError(f"{name} must be positive")
+
+for name, value in (
+    ("annotation_worker_lru_size", ANNOTATION_LRU_SIZE),
+    ("annotation_boundary_targeted_threshold", ANNOTATION_TARGETED_THRESHOLD),
+    ("conservation_worker_lru_size", CONSERVATION_LRU_SIZE),
+):
+    if value < 0:
+        raise ValueError(f"{name} must be non-negative")
+
+
+RUN_ROOT = f"results/runs/{RUN_NAME}"
+WORK_ROOT = f"{RUN_ROOT}/work"
+REFERENCE_ROOT = "results/references"
+
+ACTIVE_CIRCRNAS = f"{RUN_ROOT}/circRNAs.tsv"
+FEATURE_REQUESTS = f"{WORK_ROOT}/circRNAs.feature_requests.tsv"
+
+ANNOTATION_DB = f"{REFERENCE_ROOT}/annotation/annotation.db"
+AS_SITE_INDEX = f"{REFERENCE_ROOT}/alternative_splicing/annotation.AS_sites.tsv"
+MOUSE_HG38 = f"{REFERENCE_ROOT}/mouse/mouse.database_presence.hg38.tsv"
+MOUSE_UNMAPPED = f"{REFERENCE_ROOT}/mouse/mouse.database_presence.hg38.unmapped.tsv"
+CIRCFL_HG38 = f"{REFERENCE_ROOT}/circFL/circRNA_circFL_table.hg38.tsv"
+CIRCFL_UNMAPPED = f"{REFERENCE_ROOT}/circFL/circRNA_circFL_table.hg38.unmapped.tsv"
+PREDICTCS_REFERENCE = f"{REFERENCE_ROOT}/predictCS/reference_support.sqlite"
+SCORE_RANK_REFERENCE_ROOT = f"{REFERENCE_ROOT}/predictCS/score_rank_reference"
+SCORE_COLUMNS = [
+    "XGBoost_CS-R_score",
+    "XGBoost_CS-C_score",
+    "ElasticNet_CS-R_score",
+    "ElasticNet_CS-C_score",
+]
+RANK_COLUMNS = [
+    "XGBoost_CS-R_percentile_rank",
+    "XGBoost_CS-C_percentile_rank",
+    "ElasticNet_CS-R_percentile_rank",
+    "ElasticNet_CS-C_percentile_rank",
+]
+SCORE_RANK_ARRAYS = [
+    f"{SCORE_RANK_REFERENCE_ROOT}/{column}.npy" for column in SCORE_COLUMNS
+]
+SCORE_RANK_METADATA = f"{SCORE_RANK_REFERENCE_ROOT}/metadata.json"
+
+ANNOTATION_RESULT = f"{WORK_ROOT}/features/annotation/circRNAs.annotation_boundaries.tsv"
+AS_RESULT = f"{WORK_ROOT}/features/alternative_splicing/circRNAs.AS_check.tsv"
+
+CONSERVATION_ROOT = f"{WORK_ROOT}/features/conservation"
+CONSERVATION_CALCULABLE = f"{CONSERVATION_ROOT}/circRNAs.calculable.tsv"
+CONSERVATION_CALCULATED = f"{CONSERVATION_ROOT}/circRNAs.conservation_scores.calculated.tsv"
+CONSERVATION_UNAVAILABLE = f"{CONSERVATION_ROOT}/circRNAs.conservation_scores.unavailable.tsv"
+CONSERVATION_RESULT = f"{CONSERVATION_ROOT}/circRNAs.conservation_scores.tsv"
+
+SPLICING_ROOT = f"{WORK_ROOT}/features/splicing"
+SPLICING_CALCULABLE = f"{SPLICING_ROOT}/circRNAs.calculable.tsv"
+SPLICING_CALCULATED = f"{SPLICING_ROOT}/circRNAs.MaxEntScan_scores.calculated.tsv"
+SPLICING_UNAVAILABLE = f"{SPLICING_ROOT}/circRNAs.MaxEntScan_scores.unavailable.tsv"
+SPLICING_RESULT = f"{SPLICING_ROOT}/circRNAs.MaxEntScan_scores.tsv"
+MAXENT_ROOT = f"{SPLICING_ROOT}/MaxEntScan"
+
+FEATURES = f"{RUN_ROOT}/circRNAs.features.tsv"
+DETAILED_FEATURES = f"{RUN_ROOT}/circRNAs.features.detailed.tsv"
+PREDICTCS_SCORES = f"{RUN_ROOT}/circRNAs.predictCS_scores.tsv"
+PREDICTCS_SCORE_RANKS = f"{RUN_ROOT}/circRNAs.predictCS_score_ranks.tsv"
+RESULTS = f"{RUN_ROOT}/circRNAs.results.tsv"
+DETAILED_RESULTS = f"{RUN_ROOT}/circRNAs.results.detailed.tsv"
+
+CHECKAA_ROOT = f"{WORK_ROOT}/checkAA"
+CHECKAA_CHUNKS = f"{CHECKAA_ROOT}/chunks"
+CHECKAA_RESULT = f"{RUN_ROOT}/circRNAs.checkAA.tsv"
+RESULTS_WITH_CHECKAA = f"{RUN_ROOT}/circRNAs.results.with_checkAA.tsv"
+DETAILED_RESULTS_WITH_CHECKAA = f"{RUN_ROOT}/circRNAs.results.detailed.with_checkAA.tsv"
+
+
+rule all:
+    input:
+        FEATURES,
+        DETAILED_FEATURES,
+        PREDICTCS_SCORES,
+        PREDICTCS_SCORE_RANKS,
+        RESULTS,
+        DETAILED_RESULTS
+
+
+rule checkAA:
+    input:
+        CHECKAA_RESULT,
+        RESULTS_WITH_CHECKAA,
+        DETAILED_RESULTS_WITH_CHECKAA
+
+
+# Input normalization and internal event IDs
+
+rule prepare_input_circrnas:
+    input:
+        INPUT_CIRCRNAS
+    output:
+        ACTIVE_CIRCRNAS
+    conda:
+        "envs/python.yaml"
+    script:
+        "scripts/prepare_input_circrnas.py"
+
+
+rule prepare_feature_requests:
+    input:
+        circRNAs = ACTIVE_CIRCRNAS
+    output:
+        FEATURE_REQUESTS
+    conda:
+        "envs/python.yaml"
+    script:
+        "scripts/prepare_feature_requests.py"
+
+
+# Shared reference-derived indexes
+
+rule build_annotation_database:
+    input:
+        ANNOTATION
+    output:
+        ANNOTATION_DB
+    log:
+        f"{ANNOTATION_DB}.log"
+    conda:
+        "envs/circmimi.yaml"
+    shell:
+        "mkdir -p $(dirname {output:q}) && "
+        "circmimi_tools gendb {input:q} {output:q} 2> {log:q}"
+
+
+rule build_alternative_splicing_site_index:
+    input:
+        anno_db = ANNOTATION_DB
+    output:
+        site_index = AS_SITE_INDEX
+    log:
+        f"{AS_SITE_INDEX}.log"
+    conda:
+        "envs/circmimi.yaml"
+    script:
+        "scripts/build_alternative_splicing_site_index.py"
+
+
+rule liftover_mouse_presence_to_hg38:
+    input:
+        table = MOUSE_PRESENCE,
+        chain = MOUSE_CHAIN
+    output:
+        mapped = MOUSE_HG38,
+        unmapped = MOUSE_UNMAPPED
+    log:
+        f"{MOUSE_HG38}.log"
+    threads:
+        MOUSE_LIFTOVER_THREADS
+    conda:
+        "envs/liftover.yaml"
+    params:
+        liftover = "liftOver"
+    script:
+        "scripts/liftover_mouse_presence.py"
+
+
+rule liftover_circfl_table_to_hg38:
+    input:
+        table = CIRCFL_TABLE,
+        chain = CIRCFL_CHAIN
+    output:
+        table = CIRCFL_HG38,
+        unmapped = CIRCFL_UNMAPPED
+    log:
+        f"{CIRCFL_HG38}.log"
+    conda:
+        "envs/liftover.yaml"
+    params:
+        liftover = "liftOver"
+    script:
+        "scripts/liftover_circFL_table.py"
+
+
+rule build_predictcs_reference_database:
+    input:
+        human_presence = HUMAN_PRESENCE,
+        mouse = MOUSE_HG38,
+        circfl = CIRCFL_HG38
+    output:
+        database = PREDICTCS_REFERENCE
+    log:
+        f"{PREDICTCS_REFERENCE}.log"
+    conda:
+        "envs/python.yaml"
+    script:
+        "scripts/build_predictcs_reference_database.py"
+
+
+rule build_score_rank_reference:
+    input:
+        table = SCORE_RANK_REFERENCE
+    output:
+        arrays = SCORE_RANK_ARRAYS,
+        metadata = SCORE_RANK_METADATA
+    log:
+        f"{SCORE_RANK_REFERENCE_ROOT}/build.log"
+    params:
+        score_columns = SCORE_COLUMNS,
+        expected_rows = 4455197
+    conda:
+        "envs/python.yaml"
+    script:
+        "scripts/build_score_rank_reference.py"
+
+
+# Feature calculation
+
+rule calculate_annotation_features:
+    input:
+        circRNAs = FEATURE_REQUESTS,
+        anno_db = ANNOTATION_DB
+    output:
+        summary = ANNOTATION_RESULT
+    log:
+        f"{ANNOTATION_RESULT}.log"
+    threads:
+        ANNOTATION_THREADS
+    params:
+        shared_cache_size = ANNOTATION_LRU_SIZE,
+        chunks_per_worker = 4,
+        emit_details = False,
+        targeted_threshold = ANNOTATION_TARGETED_THRESHOLD
+    conda:
+        "envs/circmimi.yaml"
+    script:
+        "scripts/annotate_donor_acceptor_sites.py"
+
+
+rule calculate_alternative_splicing_features:
+    input:
+        circRNAs = FEATURE_REQUESTS,
+        site_index = AS_SITE_INDEX
+    output:
+        AS_RESULT
+    log:
+        f"{AS_RESULT}.log"
+    conda:
+        "envs/python.yaml"
+    script:
+        "scripts/annotate_alternative_splicing.py"
+
+
+rule partition_conservation_requests:
+    input:
+        requests = FEATURE_REQUESTS,
+        phyloP = PHYLOP,
+        phastCons = PHASTCONS
+    output:
+        calculable = CONSERVATION_CALCULABLE,
+        unavailable = CONSERVATION_UNAVAILABLE
+    log:
+        f"{CONSERVATION_ROOT}/circRNAs.partition.log"
+    params:
+        group = "conservation"
+    conda:
+        "envs/conservation.yaml"
+    script:
+        "scripts/partition_feature_requests.py"
+
+
+rule calculate_conservation_features:
+    input:
+        circRNAs = CONSERVATION_CALCULABLE,
+        phyloP = PHYLOP,
+        phastCons = PHASTCONS
+    output:
+        CONSERVATION_CALCULATED
+    log:
+        f"{CONSERVATION_RESULT}.log"
+    threads:
+        CONSERVATION_THREADS
+    params:
+        cache_size = CONSERVATION_LRU_SIZE,
+        chunks_per_worker = 4
+    conda:
+        "envs/conservation.yaml"
+    script:
+        "scripts/calculate_conservation_scores.py"
+
+
+rule merge_conservation_features:
+    input:
+        requests = FEATURE_REQUESTS,
+        calculated = CONSERVATION_CALCULATED,
+        unavailable = CONSERVATION_UNAVAILABLE
+    output:
+        CONSERVATION_RESULT
+    params:
+        group = "conservation"
+    conda:
+        "envs/python.yaml"
+    script:
+        "scripts/merge_feature_results.py"
+
+
+rule partition_splicing_requests:
+    input:
+        requests = FEATURE_REQUESTS,
+        genome = GENOME
+    output:
+        calculable = SPLICING_CALCULABLE,
+        unavailable = SPLICING_UNAVAILABLE
+    log:
+        f"{SPLICING_ROOT}/circRNAs.partition.log"
+    params:
+        group = "splicing"
+    conda:
+        "envs/python.yaml"
+    script:
+        "scripts/partition_feature_requests.py"
+
+
+rule create_maxentscan_bed:
+    input:
+        SPLICING_CALCULABLE
+    output:
+        five_prime_bed = f"{MAXENT_ROOT}/circRNAs.5p.bed",
+        three_prime_bed = f"{MAXENT_ROOT}/circRNAs.3p.bed"
+    conda:
+        "envs/python.yaml"
+    script:
+        "scripts/get_bed_for_MaxEntScan.py"
+
+
+rule create_maxentscan_fasta:
+    input:
+        genome = GENOME,
+        five_prime_bed = f"{MAXENT_ROOT}/circRNAs.5p.bed",
+        three_prime_bed = f"{MAXENT_ROOT}/circRNAs.3p.bed"
+    output:
+        five_prime_fa = f"{MAXENT_ROOT}/circRNAs.5p.fa",
+        three_prime_fa = f"{MAXENT_ROOT}/circRNAs.3p.fa"
+    log:
+        f"{MAXENT_ROOT}/circRNAs.fasta.log"
+    conda:
+        "envs/mapping.yaml"
+    script:
+        "scripts/get_maxentscan_fasta.py"
+
+
+rule run_maxentscan:
+    input:
+        five_prime_fa = f"{MAXENT_ROOT}/circRNAs.5p.fa",
+        three_prime_fa = f"{MAXENT_ROOT}/circRNAs.3p.fa"
+    output:
+        five_prime_results = f"{MAXENT_ROOT}/circRNAs.5p.results",
+        three_prime_results = f"{MAXENT_ROOT}/circRNAs.3p.results"
+    log:
+        f"{MAXENT_ROOT}/circRNAs.results.log"
+    conda:
+        "envs/maxentscan.yaml"
+    shell:
+        "(python scripts/run_maxentscan_skip_ambiguous.py --mode 5 "
+        "--input {input.five_prime_fa:q} --output {output.five_prime_results:q} && "
+        "python scripts/run_maxentscan_skip_ambiguous.py --mode 3 "
+        "--input {input.three_prime_fa:q} --output {output.three_prime_results:q}) "
+        "2> {log:q}"
+
+
+rule create_maxentscan_feature_table:
+    input:
+        five_prime_fa = f"{MAXENT_ROOT}/circRNAs.5p.fa",
+        three_prime_fa = f"{MAXENT_ROOT}/circRNAs.3p.fa",
+        five_prime_results = f"{MAXENT_ROOT}/circRNAs.5p.results",
+        three_prime_results = f"{MAXENT_ROOT}/circRNAs.3p.results"
+    output:
+        SPLICING_CALCULATED
+    log:
+        f"{SPLICING_RESULT}.log"
+    conda:
+        "envs/python.yaml"
+    script:
+        "scripts/create_table_with_splicing_scores.py"
+
+
+rule merge_splicing_features:
+    input:
+        requests = FEATURE_REQUESTS,
+        calculated = SPLICING_CALCULATED,
+        unavailable = SPLICING_UNAVAILABLE
+    output:
+        SPLICING_RESULT
+    params:
+        group = "splicing"
+    conda:
+        "envs/python.yaml"
+    script:
+        "scripts/merge_feature_results.py"
+
+
+# predictCS and final result tables
+
+rule assemble_predictcs_features:
+    input:
+        circRNAs = ACTIVE_CIRCRNAS,
+        requests = FEATURE_REQUESTS,
+        reference = PREDICTCS_REFERENCE,
+        annotation = ANNOTATION_RESULT,
+        alternative_splicing = AS_RESULT,
+        conservation = CONSERVATION_RESULT,
+        splicing = SPLICING_RESULT
+    output:
+        features = FEATURES,
+        detailed = DETAILED_FEATURES
+    conda:
+        "envs/python.yaml"
+    script:
+        "scripts/assemble_predictcs_features.py"
+
+
+rule predict_circrna_cs_scores:
+    input:
+        FEATURES
+    output:
+        PREDICTCS_SCORES
+    log:
+        f"{PREDICTCS_SCORES}.log"
+    params:
+        predictor = "scripts/predictCS.py",
+        chunk_size = PREDICTCS_CHUNK_SIZE
+    conda:
+        "envs/predictCS.yaml"
+    script:
+        "scripts/run_predictcs.py"
+
+
+rule calculate_predictcs_score_ranks:
+    input:
+        scores = PREDICTCS_SCORES,
+        arrays = SCORE_RANK_ARRAYS,
+        metadata = SCORE_RANK_METADATA
+    output:
+        PREDICTCS_SCORE_RANKS
+    log:
+        f"{PREDICTCS_SCORE_RANKS}.log"
+    params:
+        score_columns = SCORE_COLUMNS,
+        rank_columns = RANK_COLUMNS,
+        chunk_size = 100000
+    conda:
+        "envs/python.yaml"
+    script:
+        "scripts/calculate_score_ranks.py"
+
+
+rule merge_circrna_results:
+    input:
+        circRNAs = ACTIVE_CIRCRNAS,
+        features = FEATURES,
+        scores = PREDICTCS_SCORES,
+        ranks = PREDICTCS_SCORE_RANKS
+    output:
+        RESULTS
+    params:
+        mode = "analysis",
+        detailed = False
+    conda:
+        "envs/python.yaml"
+    script:
+        "scripts/merge_circrna_results.py"
+
+
+rule merge_detailed_circrna_results:
+    input:
+        circRNAs = ACTIVE_CIRCRNAS,
+        features = DETAILED_FEATURES,
+        scores = PREDICTCS_SCORES,
+        ranks = PREDICTCS_SCORE_RANKS
+    output:
+        DETAILED_RESULTS
+    params:
+        mode = "analysis",
+        detailed = True
+    conda:
+        "envs/python.yaml"
+    script:
+        "scripts/merge_circrna_results.py"
+
+
+# Optional pblat-based alignment ambiguity analysis
+
+def checkaa_other_references(wildcards):
+    if not CHECKAA_OTHER_REFERENCES:
+        raise ValueError(
+            "checkAA.other_references must be specified when running checkAA"
+        )
+    return str(CHECKAA_OTHER_REFERENCES)
+
+
+def checkaa_chunk_names(wildcards):
+    chunk_directory = checkpoints.split_checkaa_input.get().output.chunks
+    pattern = os.path.join(str(chunk_directory), "{chunk}.tsv")
+    chunks = sorted(glob_wildcards(pattern).chunk)
+    if not chunks:
+        raise ValueError("checkAA input splitting produced no chunks")
+    return chunks
+
+
+def checkaa_chunk_input(wildcards):
+    chunk_directory = checkpoints.split_checkaa_input.get().output.chunks
+    return os.path.join(str(chunk_directory), f"{wildcards.chunk}.tsv")
+
+
+def checkaa_chunk_results(wildcards):
+    return expand(
+        f"{CHECKAA_ROOT}/results/{{chunk}}.tsv",
+        chunk=checkaa_chunk_names(wildcards),
+    )
+
+
+checkpoint split_checkaa_input:
+    input:
+        circRNAs = ACTIVE_CIRCRNAS
+    output:
+        chunks = directory(CHECKAA_CHUNKS)
+    params:
+        chunk_size = CHECKAA_CHUNK_SIZE
+    conda:
+        "envs/python.yaml"
+    script:
+        "scripts/split_checkaa_input.py"
+
+
+rule run_checkaa_chunk:
+    input:
+        table = checkaa_chunk_input,
+        genome = GENOME,
+        other_references = checkaa_other_references
+    output:
+        result = temp(f"{CHECKAA_ROOT}/results/{{chunk}}.tsv")
+    log:
+        f"{CHECKAA_ROOT}/logs/{{chunk}}.log"
+    threads:
+        CHECKAA_THREADS
+    params:
+        flank_length = CHECKAA_FLANK_LENGTH,
+        pblat = "pblat"
+    wildcard_constraints:
+        chunk = "part_[0-9]{6}"
+    conda:
+        "envs/checkAA.yaml"
+    script:
+        "scripts/run_checkaa_chunk.py"
+
+
+rule merge_checkaa_results:
+    input:
+        circRNAs = ACTIVE_CIRCRNAS,
+        results = checkaa_chunk_results
+    output:
+        CHECKAA_RESULT
+    conda:
+        "envs/python.yaml"
+    script:
+        "scripts/merge_checkaa_results.py"
+
+
+rule merge_results_with_checkaa:
+    input:
+        base = RESULTS,
+        checkAA = CHECKAA_RESULT
+    output:
+        RESULTS_WITH_CHECKAA
+    params:
+        mode = "checkAA",
+        detailed = False
+    conda:
+        "envs/python.yaml"
+    script:
+        "scripts/merge_circrna_results.py"
+
+
+rule merge_detailed_results_with_checkaa:
+    input:
+        base = DETAILED_RESULTS,
+        checkAA = CHECKAA_RESULT
+    output:
+        DETAILED_RESULTS_WITH_CHECKAA
+    params:
+        mode = "checkAA",
+        detailed = True
+    conda:
+        "envs/python.yaml"
+    script:
+        "scripts/merge_circrna_results.py"

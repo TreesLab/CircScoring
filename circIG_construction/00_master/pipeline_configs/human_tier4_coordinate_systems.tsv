@@ -1,0 +1,5 @@
+database	subset	clean_input	coordinate_system	deduplicate_final
+06_CircFunBase	NA	06_CircFunBase/clean/06_CircFunBase.circRNAs.clean.tsv	hg19_0based	1
+09_circSC	NA	09_circSC/clean/09_circSC.circRNAs.clean.tsv	hg38_1based	1
+29_MiOncoCirc	NA	29_MiOncoCirc/clean/29_MiOncoCirc.circRNAs.clean.tsv	hg38_0based	1
+42_CircRic	NA	42_CircRic/clean/42_CircRic.circRNAs.clean.tsv	hg19_0based	1

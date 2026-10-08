@@ -1,0 +1,4 @@
+source	path
+01_circBase	../../../01_circBase/mouse/processed/01_circBase.circRNAs.final.tsv
+02_circAtlas	../../../02_circAtlas/mouse/processed/02_circAtlas.circRNAs.final.tsv
+07_FL-circAS	../../../07_FL-circAS/mouse/processed/07_FL-circAS.circRNAs.final.tsv
